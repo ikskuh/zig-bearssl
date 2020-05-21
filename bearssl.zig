@@ -656,6 +656,8 @@ pub const Client = struct {
     }
 };
 
+const fd_is_int = (@typeInfo(std.os.fd_t) == .Int);
+
 pub const Stream = struct {
     const Self = @This();
 
@@ -669,7 +671,10 @@ pub const Stream = struct {
             .ioc = undefined,
         };
 
-        const fd_as_ptr = @intToPtr(*c_void, @intCast(usize, fd));
+        const fd_as_ptr: *c_void = if (fd_is_int)
+            @intToPtr(*c_void, @intCast(usize, fd))
+        else
+            fd;
 
         c.br_sslio_init(&stream.ioc, stream.engine, sockRead, fd_as_ptr, sockWrite, fd_as_ptr);
         return stream;
@@ -689,7 +694,10 @@ pub const Stream = struct {
 
     /// low level read from fd to ssl library
     fn sockRead(ctx: ?*c_void, buf: [*c]u8, len: usize) callconv(.C) c_int {
-        var fd = @intCast(std.os.fd_t, @ptrToInt(ctx));
+        var fd: std.os.fd_t = if (fd_is_int)
+            @intCast(std.os.fd_t, @ptrToInt(ctx))
+        else
+            @ptrCast(std.os.fd_t, ctx);
         return if (std.os.read(fd, buf[0..len])) |num|
             @intCast(c_int, num)
         else |err|
@@ -698,7 +706,10 @@ pub const Stream = struct {
 
     /// low level  write from ssl library to fd
     fn sockWrite(ctx: ?*c_void, buf: [*c]const u8, len: usize) callconv(.C) c_int {
-        var fd = @intCast(std.os.fd_t, @ptrToInt(ctx));
+        var fd: std.os.fd_t = if (fd_is_int)
+            @intCast(std.os.fd_t, @ptrToInt(ctx))
+        else
+            @ptrCast(std.os.fd_t, ctx);
         return if (std.os.write(fd, buf[0..len])) |num|
             @intCast(c_int, num)
         else |err|
