@@ -658,102 +658,105 @@ pub const Client = struct {
 
 const fd_is_int = (@typeInfo(std.os.fd_t) == .Int);
 
-pub const Stream = struct {
-    const Self = @This();
+pub fn initStream(engine: *c.br_ssl_engine_context, in_stream: var, out_stream: var) Stream(@TypeOf(in_stream), @TypeOf(out_stream)) {
+    std.debug.assert(@typeInfo(@TypeOf(in_stream)) == .Pointer);
+    std.debug.assert(@typeInfo(@TypeOf(out_stream)) == .Pointer);
+    return Stream(@TypeOf(in_stream), @TypeOf(out_stream)).init(engine, in_stream, out_stream);
+}
 
-    engine: *c.br_ssl_engine_context,
-    ioc: c.br_sslio_context,
+pub fn Stream(comptime SrcInStream: type, comptime SrcOutStream: type) type {
+    return struct {
+        const Self = @This();
 
-    /// Initializes a new SSLStream backed by the ssl engine and file descriptor.
-    pub fn init(engine: *c.br_ssl_engine_context, fd: std.os.fd_t) Self {
-        var stream = Self{
-            .engine = engine,
-            .ioc = undefined,
-        };
+        engine: *c.br_ssl_engine_context,
+        ioc: c.br_sslio_context,
 
-        const fd_as_ptr: *c_void = if (fd_is_int)
-            @intToPtr(*c_void, @intCast(usize, fd))
-        else
-            fd;
-
-        c.br_sslio_init(&stream.ioc, stream.engine, sockRead, fd_as_ptr, sockWrite, fd_as_ptr);
-        return stream;
-    }
-
-    /// Closes the connection. Note that this may fail when the remote part does not terminate the SSL stream correctly.
-    pub fn close(self: *Self) !void {
-        if (c.br_sslio_close(&self.ioc) < 0)
-            return convertError(c.br_ssl_engine_last_error(self.engine));
-    }
-
-    /// Flushes all pending data into the fd.
-    pub fn flush(self: *Self) !void {
-        if (c.br_sslio_flush(&self.ioc) < 0)
-            return convertError(c.br_ssl_engine_last_error(self.engine));
-    }
-
-    /// low level read from fd to ssl library
-    fn sockRead(ctx: ?*c_void, buf: [*c]u8, len: usize) callconv(.C) c_int {
-        var fd: std.os.fd_t = if (fd_is_int)
-            @intCast(std.os.fd_t, @ptrToInt(ctx))
-        else
-            @ptrCast(std.os.fd_t, ctx);
-        return if (std.os.read(fd, buf[0..len])) |num|
-            @intCast(c_int, num)
-        else |err|
-            -1;
-    }
-
-    /// low level  write from ssl library to fd
-    fn sockWrite(ctx: ?*c_void, buf: [*c]const u8, len: usize) callconv(.C) c_int {
-        var fd: std.os.fd_t = if (fd_is_int)
-            @intCast(std.os.fd_t, @ptrToInt(ctx))
-        else
-            @ptrCast(std.os.fd_t, ctx);
-        return if (std.os.write(fd, buf[0..len])) |num|
-            @intCast(c_int, num)
-        else |err|
-            -1;
-    }
-
-    const ReadError = error{EndOfStream} || BearError;
-
-    /// reads some data from the ssl stream.
-    pub fn read(self: *Self, buffer: []u8) ReadError!usize {
-        var result = c.br_sslio_read(&self.ioc, buffer.ptr, buffer.len);
-        if (result < 0) {
-            const errc = c.br_ssl_engine_last_error(self.engine);
-            if (errc == c.BR_ERR_OK)
-                return 0;
-            return convertError(errc);
+        /// Initializes a new SSLStream backed by the ssl engine and file descriptor.
+        pub fn init(engine: *c.br_ssl_engine_context, in_stream: SrcInStream, out_stream: SrcOutStream) Self {
+            var stream = Self{
+                .engine = engine,
+                .ioc = undefined,
+            };
+            c.br_sslio_init(
+                &stream.ioc,
+                stream.engine,
+                sockRead,
+                @ptrCast(*c_void, in_stream),
+                sockWrite,
+                @ptrCast(*c_void, out_stream),
+            );
+            return stream;
         }
-        return @intCast(usize, result);
-    }
 
-    const WriteError = error{EndOfStream} || BearError;
-
-    /// writes some data to the ssl stream.
-    pub fn write(self: *Self, bytes: []const u8) WriteError!usize {
-        var result = c.br_sslio_write(&self.ioc, bytes.ptr, bytes.len);
-        if (result < 0) {
-            const errc = c.br_ssl_engine_last_error(self.engine);
-            if (errc == c.BR_ERR_OK)
-                return 0;
-            return convertError(errc);
+        /// Closes the connection. Note that this may fail when the remote part does not terminate the SSL stream correctly.
+        pub fn close(self: *Self) !void {
+            if (c.br_sslio_close(&self.ioc) < 0)
+                return convertError(c.br_ssl_engine_last_error(self.engine));
         }
-        return @intCast(usize, result);
-    }
 
-    pub const InStream = io.InStream(Self, ReadError, read);
-    pub fn inStream(self: *Self) std.io.InStream(*Self, ReadError, read) {
-        return .{ .context = self };
-    }
+        /// Flushes all pending data into the fd.
+        pub fn flush(self: *Self) !void {
+            if (c.br_sslio_flush(&self.ioc) < 0)
+                return convertError(c.br_ssl_engine_last_error(self.engine));
+        }
 
-    pub const OutStream = std.io.OutStream(*Self, WriteError, write);
-    pub fn outStream(self: *Self) OutStream {
-        return .{ .context = self };
-    }
-};
+        /// low level read from fd to ssl library
+        fn sockRead(ctx: ?*c_void, buf: [*c]u8, len: usize) callconv(.C) c_int {
+            var input = @ptrCast(SrcInStream, @alignCast(@alignOf(SrcInStream), ctx.?));
+            return if (input.read(buf[0..len])) |num|
+                @intCast(c_int, num)
+            else |err|
+                -1;
+        }
+
+        /// low level  write from ssl library to fd
+        fn sockWrite(ctx: ?*c_void, buf: [*c]const u8, len: usize) callconv(.C) c_int {
+            var output = @ptrCast(SrcOutStream, @alignCast(@alignOf(SrcOutStream), ctx.?));
+            return if (output.write(buf[0..len])) |num|
+                @intCast(c_int, num)
+            else |err|
+                -1;
+        }
+
+        const ReadError = error{EndOfStream} || BearError;
+
+        /// reads some data from the ssl stream.
+        pub fn read(self: *Self, buffer: []u8) ReadError!usize {
+            var result = c.br_sslio_read(&self.ioc, buffer.ptr, buffer.len);
+            if (result < 0) {
+                const errc = c.br_ssl_engine_last_error(self.engine);
+                if (errc == c.BR_ERR_OK)
+                    return 0;
+                return convertError(errc);
+            }
+            return @intCast(usize, result);
+        }
+
+        const WriteError = error{EndOfStream} || BearError;
+
+        /// writes some data to the ssl stream.
+        pub fn write(self: *Self, bytes: []const u8) WriteError!usize {
+            var result = c.br_sslio_write(&self.ioc, bytes.ptr, bytes.len);
+            if (result < 0) {
+                const errc = c.br_ssl_engine_last_error(self.engine);
+                if (errc == c.BR_ERR_OK)
+                    return 0;
+                return convertError(errc);
+            }
+            return @intCast(usize, result);
+        }
+
+        pub const DstInStream = std.io.InStream(*Self, ReadError, read);
+        pub fn inStream(self: *Self) DstInStream {
+            return .{ .context = self };
+        }
+
+        pub const DstOutStream = std.io.OutStream(*Self, WriteError, write);
+        pub fn outStream(self: *Self) DstOutStream {
+            return .{ .context = self };
+        }
+    };
+}
 
 fn appendToBuffer(dest_ctx: ?*c_void, buf: ?*const c_void, len: usize) callconv(.C) void {
     var dest_buffer = @ptrCast(*std.ArrayList(u8), @alignCast(@alignOf(std.ArrayList(u8)), dest_ctx));
