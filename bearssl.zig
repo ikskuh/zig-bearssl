@@ -322,7 +322,12 @@ pub const TrustAnchorCollection = struct {
                 0 => unreachable, // there must be an event, we always push the full file
 
                 c.BR_PEM_BEGIN_OBJ => {
-                    const name = std.mem.spanZ(c.br_pem_decoder_name(&x509_decoder));
+                    const name = std.mem.trim(
+                        u8,
+                        std.mem.spanZ(c.br_pem_decoder_name(&x509_decoder)),
+                        "-",
+                    );
+
                     current_obj_is_certificate = std.mem.eql(u8, name, "CERTIFICATE") or std.mem.eql(u8, name, "X509 CERTIFICATE");
                     if (current_obj_is_certificate) {
                         try objectBuffer.resize(0);
