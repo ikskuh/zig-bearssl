@@ -663,7 +663,7 @@ pub const Client = struct {
 
 const fd_is_int = (@typeInfo(std.os.fd_t) == .Int);
 
-pub fn initStream(engine: *c.br_ssl_engine_context, in_stream: var, out_stream: var) Stream(@TypeOf(in_stream), @TypeOf(out_stream)) {
+pub fn initStream(engine: *c.br_ssl_engine_context, in_stream: anytype, out_stream: anytype) Stream(@TypeOf(in_stream), @TypeOf(out_stream)) {
     std.debug.assert(@typeInfo(@TypeOf(in_stream)) == .Pointer);
     std.debug.assert(@typeInfo(@TypeOf(out_stream)) == .Pointer);
     return Stream(@TypeOf(in_stream), @TypeOf(out_stream)).init(engine, in_stream, out_stream);
