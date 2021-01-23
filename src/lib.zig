@@ -1,25 +1,5 @@
 const std = @import("std");
 
-/// Adds all BearSSL sources to the exeobj step
-/// Allows simple linking from build scripts.
-pub fn linkBearSSL(comptime path_prefix: []const u8, module: *std.build.LibExeObjStep, target: std.zig.CrossTarget) void {
-    module.linkLibC();
-
-    module.addIncludeDir(path_prefix ++ "/BearSSL/inc");
-    module.addIncludeDir(path_prefix ++ "/BearSSL/src");
-
-    inline for (bearssl_sources) |srcfile| {
-        module.addCSourceFile(path_prefix ++ srcfile, &[_][]const u8{
-            "-Wall",
-            "-DBR_LE_UNALIGNED=0", // this prevent BearSSL from using undefined behaviour when doing potential unaligned access
-        });
-    }
-
-    if (target.isWindows()) {
-        module.linkSystemLibrary("advapi32");
-    }
-}
-
 // Export C for advanced interfacing
 pub const c = @cImport({
     @cInclude("bearssl.h");

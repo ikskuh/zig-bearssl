@@ -288,3 +288,5 @@ dependencies:
       - src/x509/x509_knownkey.c
       - src/x509/x509_minimal.c
       - src/x509/x509_minimal_full.c
+  - src: system_lib advapi32
+    only_os: windows
