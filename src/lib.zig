@@ -333,7 +333,7 @@ pub const TrustAnchorCollection = struct {
                         try objectBuffer.resize(0);
                         c.br_pem_decoder_setdest(&x509_decoder, appendToBuffer, &objectBuffer);
                     } else {
-                        std.debug.warn("ignore object of type '{}'\n", .{name});
+                        std.debug.warn("ignore object of type '{s}'\n", .{name});
                         c.br_pem_decoder_setdest(&x509_decoder, null, null);
                     }
                 },
@@ -669,7 +669,7 @@ pub fn initStream(engine: *c.br_ssl_engine_context, in_stream: anytype, out_stre
     return Stream(@TypeOf(in_stream), @TypeOf(out_stream)).init(engine, in_stream, out_stream);
 }
 
-pub fn Stream(comptime SrcInStream: type, comptime SrcOutStream: type) type {
+pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
     return struct {
         const Self = @This();
 
@@ -677,7 +677,7 @@ pub fn Stream(comptime SrcInStream: type, comptime SrcOutStream: type) type {
         ioc: c.br_sslio_context,
 
         /// Initializes a new SSLStream backed by the ssl engine and file descriptor.
-        pub fn init(engine: *c.br_ssl_engine_context, in_stream: SrcInStream, out_stream: SrcOutStream) Self {
+        pub fn init(engine: *c.br_ssl_engine_context, in_stream: SrcReader, out_stream: SrcWriter) Self {
             var stream = Self{
                 .engine = engine,
                 .ioc = undefined,
@@ -707,20 +707,18 @@ pub fn Stream(comptime SrcInStream: type, comptime SrcOutStream: type) type {
 
         /// low level read from fd to ssl library
         fn sockRead(ctx: ?*c_void, buf: [*c]u8, len: usize) callconv(.C) c_int {
-            var input = @ptrCast(SrcInStream, @alignCast(@alignOf(std.meta.Child(SrcInStream)), ctx.?));
+            var input = @ptrCast(SrcReader, @alignCast(@alignOf(std.meta.Child(SrcReader)), ctx.?));
             return if (input.read(buf[0..len])) |num|
                 if (num > 0) @intCast(c_int, num) else -1
-            else |err|
-                -1;
+            else |err| -1;
         }
 
         /// low level  write from ssl library to fd
         fn sockWrite(ctx: ?*c_void, buf: [*c]const u8, len: usize) callconv(.C) c_int {
-            var output = @ptrCast(SrcOutStream, @alignCast(@alignOf(std.meta.Child(SrcOutStream)), ctx.?));
+            var output = @ptrCast(SrcWriter, @alignCast(@alignOf(std.meta.Child(SrcWriter)), ctx.?));
             return if (output.write(buf[0..len])) |num|
                 if (num > 0) @intCast(c_int, num) else -1
-            else |err|
-                -1;
+            else |err| -1;
         }
 
         const ReadError = error{EndOfStream} || BearError;
@@ -751,13 +749,13 @@ pub fn Stream(comptime SrcInStream: type, comptime SrcOutStream: type) type {
             return @intCast(usize, result);
         }
 
-        pub const DstInStream = std.io.InStream(*Self, ReadError, read);
-        pub fn inStream(self: *Self) DstInStream {
+        pub const DstReader = std.io.Reader(*Self, ReadError, read);
+        pub fn reader(self: *Self) DstReader {
             return .{ .context = self };
         }
 
-        pub const DstOutStream = std.io.OutStream(*Self, WriteError, write);
-        pub fn outStream(self: *Self) DstOutStream {
+        pub const DstWriter = std.io.Writer(*Self, WriteError, write);
+        pub fn writer(self: *Self) DstWriter {
             return .{ .context = self };
         }
     };
