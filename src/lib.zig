@@ -157,15 +157,16 @@ pub const PublicKey = struct {
     key: KeyStore,
     usages: ?c_uint,
 
-    pub fn fromX509(allocator: *std.mem.Allocator, inkey: c.br_x509_pkey) !Self {
+    pub fn fromX509(allocator: std.mem.Allocator, inkey: c.br_x509_pkey) !Self {
         var arena = std.heap.ArenaAllocator.init(allocator);
         errdefer arena.deinit();
+        var alloc = arena.allocator();
 
         var key = switch (inkey.key_type) {
             c.BR_KEYTYPE_RSA => KeyStore{
                 .rsa = .{
-                    .n = try std.mem.dupe(&arena.allocator, u8, inkey.key.rsa.n[0..inkey.key.rsa.nlen]),
-                    .e = try std.mem.dupe(&arena.allocator, u8, inkey.key.rsa.e[0..inkey.key.rsa.elen]),
+                    .n = try std.mem.dupe(alloc, u8, inkey.key.rsa.n[0..inkey.key.rsa.nlen]),
+                    .e = try std.mem.dupe(alloc, u8, inkey.key.rsa.e[0..inkey.key.rsa.elen]),
                 },
             },
             c.BR_KEYTYPE_EC => KeyStore{
@@ -266,14 +267,14 @@ pub const PublicKey = struct {
 pub const DERCertificate = struct {
     const Self = @This();
 
-    allocator: *std.mem.Allocator,
+    allocator: std.mem.Allocator,
     data: []u8,
 
     pub fn deinit(self: Self) void {
         self.allocator.free(self.data);
     }
 
-    fn fromX509(allocator: *std.mem.Allocator, cert: *c.br_x509_certificate) !Certificate {
+    fn fromX509(allocator: std.mem.Allocator, cert: *c.br_x509_certificate) !DERCertificate {
         return Self{
             .allocator = allocator,
             .data = try std.mem.dupe(allocator, u8, cert.data[0..cert.data_len]),
@@ -294,7 +295,7 @@ pub const TrustAnchorCollection = struct {
     arena: std.heap.ArenaAllocator,
     items: std.ArrayList(c.br_x509_trust_anchor),
 
-    pub fn init(allocator: *std.mem.Allocator) Self {
+    pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .items = std.ArrayList(c.br_x509_trust_anchor).init(allocator),
             .arena = std.heap.ArenaAllocator.init(allocator),
@@ -366,7 +367,7 @@ pub const TrustAnchorCollection = struct {
         self.arena.deinit();
     }
 
-    fn convertToTrustAnchor(allocator: *std.mem.Allocator, cert: c.br_x509_certificate) !c.br_x509_trust_anchor {
+    fn convertToTrustAnchor(allocator: std.mem.Allocator, cert: c.br_x509_certificate) !c.br_x509_trust_anchor {
         var dc: c.br_x509_decoder_context = undefined;
 
         var vdn = std.ArrayList(u8).init(allocator);
@@ -686,9 +687,9 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
                 &stream.ioc,
                 stream.engine,
                 sockRead,
-                @ptrCast(*c_void, in_stream),
+                @ptrCast(*anyopaque, in_stream),
                 sockWrite,
-                @ptrCast(*c_void, out_stream),
+                @ptrCast(*anyopaque, out_stream),
             );
             return stream;
         }
@@ -706,19 +707,21 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
         }
 
         /// low level read from fd to ssl library
-        fn sockRead(ctx: ?*c_void, buf: [*c]u8, len: usize) callconv(.C) c_int {
+        fn sockRead(ctx: ?*anyopaque, buf: [*c]u8, len: usize) callconv(.C) c_int {
             var input = @ptrCast(SrcReader, @alignCast(@alignOf(std.meta.Child(SrcReader)), ctx.?));
             return if (input.read(buf[0..len])) |num|
                 if (num > 0) @intCast(c_int, num) else -1
-            else |err| -1;
+            else
+                -1;
         }
 
         /// low level  write from ssl library to fd
-        fn sockWrite(ctx: ?*c_void, buf: [*c]const u8, len: usize) callconv(.C) c_int {
+        fn sockWrite(ctx: ?*anyopaque, buf: [*c]const u8, len: usize) callconv(.C) c_int {
             var output = @ptrCast(SrcWriter, @alignCast(@alignOf(std.meta.Child(SrcWriter)), ctx.?));
             return if (output.write(buf[0..len])) |num|
                 if (num > 0) @intCast(c_int, num) else -1
-            else |err| -1;
+            else
+                -1;
         }
 
         const ReadError = error{EndOfStream} || BearError;
@@ -761,11 +764,11 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
     };
 }
 
-fn appendToBuffer(dest_ctx: ?*c_void, buf: ?*const c_void, len: usize) callconv(.C) void {
+fn appendToBuffer(dest_ctx: ?*anyopaque, buf: ?*const anyopaque, len: usize) callconv(.C) void {
     var dest_buffer = @ptrCast(*std.ArrayList(u8), @alignCast(@alignOf(std.ArrayList(u8)), dest_ctx));
     // std.debug.warn("read chunk of {} bytes...\n", .{len});
 
-    dest_buffer.appendSlice(@ptrCast([*]const u8, buf)[0..len]) catch |err| {
+    dest_buffer.appendSlice(@ptrCast([*]const u8, buf)[0..len]) catch {
         std.debug.warn("failed to read chunk of {} bytes...\n", .{len});
     };
 }
@@ -818,6 +821,8 @@ const asn1 = struct {
     };
 
     fn encode(buffer: ?[]u8, value: Value) !usize {
+        _ = buffer;
+        _ = value;
         //
     }
 };
