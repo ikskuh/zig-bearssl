@@ -711,19 +711,17 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
         /// low level read from fd to ssl library
         fn sockRead(ctx: ?*anyopaque, buf: [*c]u8, len: usize) callconv(.C) c_int {
             var input = @ptrCast(SrcReader, @alignCast(@alignOf(std.meta.Child(SrcReader)), ctx.?));
-            return if (input.read(buf[0..len])) |num|
-                if (num > 0) @intCast(c_int, num) else -1
-            else
-                -1;
+
+            var read_result = input.read(buf[0..len]) catch return -1;
+            return if (read_result > 0) @intCast(c_int, read_result) else -1;
         }
 
         /// low level  write from ssl library to fd
         fn sockWrite(ctx: ?*anyopaque, buf: [*c]const u8, len: usize) callconv(.C) c_int {
             var output = @ptrCast(SrcWriter, @alignCast(@alignOf(std.meta.Child(SrcWriter)), ctx.?));
-            return if (output.write(buf[0..len])) |num|
-                if (num > 0) @intCast(c_int, num) else -1
-            else
-                -1;
+
+            var write_result = output.write(buf[0..len]) catch return -1;
+            return if (write_result > 0) @intCast(c_int, write_result) else -1;
         }
 
         const ReadError = error{EndOfStream} || BearError;
