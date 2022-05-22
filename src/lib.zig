@@ -306,7 +306,7 @@ pub const TrustAnchorCollection = struct {
         var objectBuffer = std.ArrayList(u8).init(self.items.allocator);
         defer objectBuffer.deinit();
 
-        try objectBuffer.ensureCapacity(8192);
+        try objectBuffer.ensureUnusedCapacity(8192);
 
         var x509_decoder: c.br_pem_decoder_context = undefined;
         c.br_pem_decoder_init(&x509_decoder);
@@ -325,7 +325,7 @@ pub const TrustAnchorCollection = struct {
                 c.BR_PEM_BEGIN_OBJ => {
                     const name = std.mem.trim(
                         u8,
-                        std.mem.spanZ(c.br_pem_decoder_name(&x509_decoder)),
+                        std.mem.sliceTo(c.br_pem_decoder_name(&x509_decoder), 0),
                         "-",
                     );
 
@@ -334,7 +334,7 @@ pub const TrustAnchorCollection = struct {
                         try objectBuffer.resize(0);
                         c.br_pem_decoder_setdest(&x509_decoder, appendToBuffer, &objectBuffer);
                     } else {
-                        std.debug.warn("ignore object of type '{s}'\n", .{name});
+                        std.log.warn("ignore object of type '{s}'\n", .{name});
                         c.br_pem_decoder_setdest(&x509_decoder, null, null);
                     }
                 },
@@ -350,11 +350,11 @@ pub const TrustAnchorCollection = struct {
                         try self.items.append(trust_anchor);
                         // ignore end of
                     } else {
-                        std.debug.warn("end of ignored object.\n", .{});
+                        std.log.warn("end of ignored object.\n", .{});
                     }
                 },
                 c.BR_PEM_ERROR => {
-                    std.debug.warn("pem error:\n", .{});
+                    std.log.warn("pem error:\n", .{});
                 },
 
                 else => unreachable, // no other values are specified
@@ -766,10 +766,10 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
 
 fn appendToBuffer(dest_ctx: ?*anyopaque, buf: ?*const anyopaque, len: usize) callconv(.C) void {
     var dest_buffer = @ptrCast(*std.ArrayList(u8), @alignCast(@alignOf(std.ArrayList(u8)), dest_ctx));
-    // std.debug.warn("read chunk of {} bytes...\n", .{len});
+    // std.log.warn("read chunk of {} bytes...\n", .{len});
 
     dest_buffer.appendSlice(@ptrCast([*]const u8, buf)[0..len]) catch {
-        std.debug.warn("failed to read chunk of {} bytes...\n", .{len});
+        std.log.warn("failed to read chunk of {} bytes...\n", .{len});
     };
 }
 
