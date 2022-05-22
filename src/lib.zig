@@ -303,6 +303,8 @@ pub const TrustAnchorCollection = struct {
     }
 
     pub fn appendFromPEM(self: *Self, pem_text: []const u8) !void {
+        var arenaAlloc = self.arena.allocator();
+
         var objectBuffer = std.ArrayList(u8).init(self.items.allocator);
         defer objectBuffer.deinit();
 
@@ -345,7 +347,7 @@ pub const TrustAnchorCollection = struct {
                             .data_len = objectBuffer.items.len,
                         };
 
-                        var trust_anchor = try convertToTrustAnchor(&self.arena.allocator, certificate);
+                        var trust_anchor = try convertToTrustAnchor(arenaAlloc, certificate);
 
                         try self.items.append(trust_anchor);
                         // ignore end of
@@ -393,10 +395,10 @@ pub const TrustAnchorCollection = struct {
 
         switch (public_key.key_type) {
             c.BR_KEYTYPE_RSA => {
-                var n = try std.mem.dupe(allocator, u8, public_key.key.rsa.n[0..public_key.key.rsa.nlen]);
+                var n = try allocator.dupe(u8, public_key.key.rsa.n[0..public_key.key.rsa.nlen]);
                 errdefer allocator.free(n);
 
-                var e = try std.mem.dupe(allocator, u8, public_key.key.rsa.e[0..public_key.key.rsa.elen]);
+                var e = try allocator.dupe(u8, public_key.key.rsa.e[0..public_key.key.rsa.elen]);
                 errdefer allocator.free(e);
 
                 ta.pkey = .{
@@ -412,7 +414,7 @@ pub const TrustAnchorCollection = struct {
                 };
             },
             c.BR_KEYTYPE_EC => {
-                var q = try std.mem.dupe(allocator, u8, public_key.key.ec.q[0..public_key.key.ec.qlen]);
+                var q = try allocator.dupe(u8, public_key.key.ec.q[0..public_key.key.ec.qlen]);
                 errdefer allocator.free(q);
 
                 ta.pkey = .{
