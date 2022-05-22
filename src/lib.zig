@@ -336,7 +336,7 @@ pub const TrustAnchorCollection = struct {
                         try objectBuffer.resize(0);
                         c.br_pem_decoder_setdest(&x509_decoder, appendToBuffer, &objectBuffer);
                     } else {
-                        std.log.warn("ignore object of type '{s}'\n", .{name});
+                        std.log.warn("ignore object of type '{s}'", .{name});
                         c.br_pem_decoder_setdest(&x509_decoder, null, null);
                     }
                 },
@@ -352,11 +352,11 @@ pub const TrustAnchorCollection = struct {
                         try self.items.append(trust_anchor);
                         // ignore end of
                     } else {
-                        std.log.warn("end of ignored object.\n", .{});
+                        std.log.warn("end of ignored object.", .{});
                     }
                 },
                 c.BR_PEM_ERROR => {
-                    std.log.warn("pem error:\n", .{});
+                    std.log.warn("pem error:", .{});
                 },
 
                 else => unreachable, // no other values are specified
@@ -766,10 +766,10 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
 
 fn appendToBuffer(dest_ctx: ?*anyopaque, buf: ?*const anyopaque, len: usize) callconv(.C) void {
     var dest_buffer = @ptrCast(*std.ArrayList(u8), @alignCast(@alignOf(std.ArrayList(u8)), dest_ctx));
-    // std.log.warn("read chunk of {} bytes...\n", .{len});
+    // std.log.warn("read chunk of {} bytes...", .{len});
 
     dest_buffer.appendSlice(@ptrCast([*]const u8, buf)[0..len]) catch {
-        std.log.warn("failed to read chunk of {} bytes...\n", .{len});
+        std.log.warn("failed to read chunk of {} bytes...", .{len});
     };
 }
 
