@@ -1,23 +1,32 @@
 const std = @import("std");
 
-/// Adds all BearSSL sources to the exeobj step
+/// Adds all BearSSL sources to the compile step
 /// Allows simple linking from build scripts.
-pub fn linkBearSSL(comptime path_prefix: []const u8, module: *std.build.LibExeObjStep, target: std.zig.CrossTarget) void {
+pub fn linkBearSSL(comptime path_prefix: []const u8, module: *std.Build.Step.Compile, target: std.zig.CrossTarget) void {
     module.linkLibC();
 
-    module.addIncludeDir(path_prefix ++ "/BearSSL/inc");
-    module.addIncludeDir(path_prefix ++ "/BearSSL/src");
+    module.addIncludePath(.{ .path = path_prefix ++ "/BearSSL/inc" });
+    module.addIncludePath(.{ .path = path_prefix ++ "/BearSSL/src" });
 
-    inline for (bearssl_sources) |srcfile| {
-        module.addCSourceFile(path_prefix ++ srcfile, &[_][]const u8{
+    module.addCSourceFiles(
+        addPrefixToPaths(path_prefix, &bearssl_sources),
+        &[_][]const u8{
             "-Wall",
             "-DBR_LE_UNALIGNED=0", // this prevent BearSSL from using undefined behaviour when doing potential unaligned access
-        });
-    }
+        },
+    );
 
     if (target.isWindows()) {
         module.linkSystemLibrary("advapi32");
     }
+}
+
+fn addPrefixToPaths(comptime prefix: []const u8, comptime paths: []const []const u8) []const []const u8 {
+    var prefixed_paths: [paths.len][]const u8 = undefined;
+    inline for (paths, &prefixed_paths) |path, *prefixed| {
+        prefixed.* = prefix ++ path;
+    }
+    return &prefixed_paths;
 }
 
 // Export C for advanced interfacing
@@ -165,14 +174,14 @@ pub const PublicKey = struct {
         var key = switch (inkey.key_type) {
             c.BR_KEYTYPE_RSA => KeyStore{
                 .rsa = .{
-                    .n = try std.mem.dupe(alloc, u8, inkey.key.rsa.n[0..inkey.key.rsa.nlen]),
-                    .e = try std.mem.dupe(alloc, u8, inkey.key.rsa.e[0..inkey.key.rsa.elen]),
+                    .n = try alloc.dupe(u8, inkey.key.rsa.n[0..inkey.key.rsa.nlen]),
+                    .e = try alloc.dupe(u8, inkey.key.rsa.e[0..inkey.key.rsa.elen]),
                 },
             },
             c.BR_KEYTYPE_EC => KeyStore{
                 .ec = .{
                     .curve = inkey.key.ec.curve,
-                    .q = try std.mem.dupe(&arena.allocator, u8, inkey.key.ec.q[0..inkey.key.ec.qlen]),
+                    .q = try arena.allocator().dupe(u8, inkey.key.ec.q[0..inkey.key.ec.qlen]),
                 },
             },
             else => return error.UnsupportedKeyType,
@@ -378,7 +387,7 @@ pub const TrustAnchorCollection = struct {
         c.br_x509_decoder_init(&dc, appendToBuffer, &vdn);
         c.br_x509_decoder_push(&dc, cert.data, cert.data_len);
 
-        const public_key: *c.br_x509_pkey = if (@ptrCast(?*c.br_x509_pkey, c.br_x509_decoder_get_pkey(&dc))) |pk|
+        const public_key: *c.br_x509_pkey = if (@as(?*c.br_x509_pkey, @ptrCast(c.br_x509_decoder_get_pkey(&dc)))) |pk|
             pk
         else
             return convertError(c.br_x509_decoder_last_error(&dc));
@@ -440,7 +449,7 @@ pub const TrustAnchorCollection = struct {
             else => unreachable,
         };
 
-        const dn = vdn.toOwnedSlice();
+        const dn = try vdn.toOwnedSlice();
         ta.dn = .{
             .data = dn.ptr,
             .len = dn.len,
@@ -557,7 +566,7 @@ pub const x509 = struct {
             var id: usize = c.br_md5_ID;
             while (id <= c.br_sha512_ID) : (id += 1) {
                 const hc = hash_classes[id - 1];
-                c.br_x509_minimal_set_hash(xc, @intCast(c_int, id), hc);
+                c.br_x509_minimal_set_hash(xc, @intCast(id), hc);
             }
 
             return self;
@@ -626,7 +635,7 @@ pub const Client = struct {
         const hash_classes = getHashClasses();
         var id: c_int = c.br_md5_ID;
         while (id <= c.br_sha512_ID) : (id += 1) {
-            const hc = hash_classes[@intCast(usize, id - 1)];
+            const hc = hash_classes[@intCast(id - 1)];
             c.br_ssl_engine_set_hash(&cc.eng, id, hc);
         }
 
@@ -644,7 +653,7 @@ pub const Client = struct {
         c.br_ssl_engine_set_default_chapol(&cc.eng);
 
         // Link the X.509 engine in the SSL engine.
-        c.br_ssl_engine_set_x509(&cc.eng, @ptrCast([*c][*c]const c.br_x509_class, engine));
+        c.br_ssl_engine_set_x509(&cc.eng, @ptrCast(engine));
 
         return ctx;
     }
@@ -689,9 +698,9 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
                 &stream.ioc,
                 stream.engine,
                 sockRead,
-                @ptrCast(*anyopaque, in_stream),
+                @ptrCast(in_stream),
                 sockWrite,
-                @ptrCast(*anyopaque, out_stream),
+                @ptrCast(out_stream),
             );
             return stream;
         }
@@ -710,18 +719,18 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
 
         /// low level read from fd to ssl library
         fn sockRead(ctx: ?*anyopaque, buf: [*c]u8, len: usize) callconv(.C) c_int {
-            var input = @ptrCast(SrcReader, @alignCast(@alignOf(std.meta.Child(SrcReader)), ctx.?));
+            var input = @as(SrcReader, @ptrCast(@alignCast(ctx.?)));
 
             var read_result = input.read(buf[0..len]) catch return -1;
-            return if (read_result > 0) @intCast(c_int, read_result) else -1;
+            return if (read_result > 0) @intCast(read_result) else -1;
         }
 
         /// low level  write from ssl library to fd
         fn sockWrite(ctx: ?*anyopaque, buf: [*c]const u8, len: usize) callconv(.C) c_int {
-            var output = @ptrCast(SrcWriter, @alignCast(@alignOf(std.meta.Child(SrcWriter)), ctx.?));
+            var output = @as(SrcWriter, @ptrCast(@alignCast(ctx.?)));
 
             var write_result = output.write(buf[0..len]) catch return -1;
-            return if (write_result > 0) @intCast(c_int, write_result) else -1;
+            return if (write_result > 0) @intCast(write_result) else -1;
         }
 
         const ReadError = error{EndOfStream} || BearError;
@@ -735,7 +744,7 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
                     return 0;
                 return convertError(errc);
             }
-            return @intCast(usize, result);
+            return @intCast(result);
         }
 
         const WriteError = error{EndOfStream} || BearError;
@@ -749,7 +758,7 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
                     return 0;
                 return convertError(errc);
             }
-            return @intCast(usize, result);
+            return @intCast(result);
         }
 
         pub const DstReader = std.io.Reader(*Self, ReadError, read);
@@ -765,10 +774,11 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
 }
 
 fn appendToBuffer(dest_ctx: ?*anyopaque, buf: ?*const anyopaque, len: usize) callconv(.C) void {
-    var dest_buffer = @ptrCast(*std.ArrayList(u8), @alignCast(@alignOf(std.ArrayList(u8)), dest_ctx));
+    var dest_buffer = @as(*std.ArrayList(u8), @ptrCast(@alignCast(dest_ctx)));
+
     // std.log.warn("read chunk of {} bytes...", .{len});
 
-    dest_buffer.appendSlice(@ptrCast([*]const u8, buf)[0..len]) catch {
+    dest_buffer.appendSlice(@as([*]const u8, @ptrCast(buf))[0..len]) catch {
         std.log.warn("failed to read chunk of {} bytes...", .{len});
     };
 }
@@ -786,7 +796,7 @@ const asn1 = struct {
         bit_string,
         boolean,
         integer,
-        @"null",
+        null,
         object_identifier,
         octet_string,
         bmpstring,
@@ -801,7 +811,7 @@ const asn1 = struct {
         bit_string: void,
         boolean: void,
         integer: Integer,
-        @"null": void,
+        null: void,
         object_identifier: void,
         octet_string: void,
         bmpstring: void,

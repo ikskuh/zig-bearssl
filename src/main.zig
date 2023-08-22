@@ -8,5 +8,5 @@ pub fn main() anyerror!void {
     const trust_anchor = ssl.TrustAnchorCollection.init(alloc);
     var x509 = ssl.x509.Minimal.init(trust_anchor);
     const client = ssl.Client.init(x509.getEngine());
-    std.debug.print("{s}", .{client});
+    std.debug.print("{}", .{client});
 }
