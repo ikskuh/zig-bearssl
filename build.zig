@@ -1,9 +1,11 @@
 const std = @import("std");
-const deps = @import("./deps.zig");
+
+pub const bearssl = @import("src/lib.zig");
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+    _ = b.addModule("bearssl", .{ .source_file = .{ .path = "src/lib.zig" } });
 
+    const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
@@ -15,7 +17,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    deps.addAllTo(exe);
+    bearssl.linkBearSSL(".", exe, target);
 
     b.installArtifact(exe);
 
