@@ -3,10 +3,14 @@ const std = @import("std");
 pub const bearssl = @import("src/lib.zig");
 
 pub fn build(b: *std.Build) void {
-    _ = b.addModule("bearssl", .{ .source_file = .{ .path = "src/lib.zig" } });
-
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    _ = b.addModule("bearssl", .{
+        .root_source_file = b.path("src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe = b.addExecutable(.{
         .name = "zig-bearssl",
