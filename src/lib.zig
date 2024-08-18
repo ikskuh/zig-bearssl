@@ -2,7 +2,7 @@ const std = @import("std");
 
 /// Adds all BearSSL sources to the compile step
 /// Allows simple linking from build scripts.
-pub fn linkBearSSL(path_prefix: []const u8, module: *std.Build.Step.Compile, target: std.zig.CrossTarget) void {
+pub fn linkBearSSL(path_prefix: []const u8, module: *std.Build.Step.Compile, target: std.Build.ResolvedTarget) void {
     module.linkLibC();
 
     const inc_path = module.step.owner.pathJoin(&[_][]const u8{ path_prefix, "BearSSL/inc" });
