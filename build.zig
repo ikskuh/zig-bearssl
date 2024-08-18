@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    bearssl.linkBearSSL(".", exe, target);
+    bearssl.linkBearSSL(".", exe, target, b);
 
     b.installArtifact(exe);
 
