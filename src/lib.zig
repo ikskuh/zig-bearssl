@@ -182,7 +182,7 @@ pub const PublicKey = struct {
         errdefer arena.deinit();
         var alloc = arena.allocator();
 
-        var key = switch (inkey.key_type) {
+        const key = switch (inkey.key_type) {
             c.BR_KEYTYPE_RSA => KeyStore{
                 .rsa = .{
                     .n = try alloc.dupe(u8, inkey.key.rsa.n[0..inkey.key.rsa.nlen]),
@@ -261,7 +261,7 @@ pub const PublicKey = struct {
             },
         };
 
-        var sequence = asn1.Value{
+        const sequence = asn1.Value{
             .sequence = asn1.Sequence{ .items = &sequence_content },
         };
 
@@ -323,7 +323,7 @@ pub const TrustAnchorCollection = struct {
     }
 
     pub fn appendFromPEM(self: *Self, pem_text: []const u8) !void {
-        var arenaAlloc = self.arena.allocator();
+        const arenaAlloc = self.arena.allocator();
 
         var objectBuffer = std.ArrayList(u8).init(self.items.allocator);
         defer objectBuffer.deinit();
@@ -337,10 +337,10 @@ pub const TrustAnchorCollection = struct {
 
         var offset: usize = 0;
         while (offset < pem_text.len) {
-            var diff = c.br_pem_decoder_push(&x509_decoder, pem_text.ptr + offset, pem_text.len - offset);
+            const diff = c.br_pem_decoder_push(&x509_decoder, pem_text.ptr + offset, pem_text.len - offset);
             offset += diff;
 
-            var event = c.br_pem_decoder_event(&x509_decoder);
+            const event = c.br_pem_decoder_event(&x509_decoder);
             switch (event) {
                 0 => unreachable, // there must be an event, we always push the full file
 
@@ -362,12 +362,12 @@ pub const TrustAnchorCollection = struct {
                 },
                 c.BR_PEM_END_OBJ => {
                     if (current_obj_is_certificate) {
-                        var certificate = c.br_x509_certificate{
+                        const certificate = c.br_x509_certificate{
                             .data = objectBuffer.items.ptr,
                             .data_len = objectBuffer.items.len,
                         };
 
-                        var trust_anchor = try convertToTrustAnchor(arenaAlloc, certificate);
+                        const trust_anchor = try convertToTrustAnchor(arenaAlloc, certificate);
 
                         try self.items.append(trust_anchor);
                         // ignore end of
@@ -415,10 +415,10 @@ pub const TrustAnchorCollection = struct {
 
         switch (public_key.key_type) {
             c.BR_KEYTYPE_RSA => {
-                var n = try allocator.dupe(u8, public_key.key.rsa.n[0..public_key.key.rsa.nlen]);
+                const n = try allocator.dupe(u8, public_key.key.rsa.n[0..public_key.key.rsa.nlen]);
                 errdefer allocator.free(n);
 
-                var e = try allocator.dupe(u8, public_key.key.rsa.e[0..public_key.key.rsa.elen]);
+                const e = try allocator.dupe(u8, public_key.key.rsa.e[0..public_key.key.rsa.elen]);
                 errdefer allocator.free(e);
 
                 ta.pkey = .{
@@ -434,7 +434,7 @@ pub const TrustAnchorCollection = struct {
                 };
             },
             c.BR_KEYTYPE_EC => {
-                var q = try allocator.dupe(u8, public_key.key.ec.q[0..public_key.key.ec.qlen]);
+                const q = try allocator.dupe(u8, public_key.key.ec.q[0..public_key.key.ec.qlen]);
                 errdefer allocator.free(q);
 
                 ta.pkey = .{
@@ -732,7 +732,7 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
         fn sockRead(ctx: ?*anyopaque, buf: [*c]u8, len: usize) callconv(.C) c_int {
             var input = @as(SrcReader, @ptrCast(@alignCast(ctx.?)));
 
-            var read_result = input.read(buf[0..len]) catch return -1;
+            const read_result = input.read(buf[0..len]) catch return -1;
             return if (read_result > 0) @intCast(read_result) else -1;
         }
 
@@ -740,7 +740,7 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
         fn sockWrite(ctx: ?*anyopaque, buf: [*c]const u8, len: usize) callconv(.C) c_int {
             var output = @as(SrcWriter, @ptrCast(@alignCast(ctx.?)));
 
-            var write_result = output.write(buf[0..len]) catch return -1;
+            const write_result = output.write(buf[0..len]) catch return -1;
             return if (write_result > 0) @intCast(write_result) else -1;
         }
 
@@ -748,7 +748,7 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
 
         /// reads some data from the ssl stream.
         pub fn read(self: *Self, buffer: []u8) ReadError!usize {
-            var result = c.br_sslio_read(&self.ioc, buffer.ptr, buffer.len);
+            const result = c.br_sslio_read(&self.ioc, buffer.ptr, buffer.len);
             if (result < 0) {
                 const errc = c.br_ssl_engine_last_error(self.engine);
                 if (errc == c.BR_ERR_OK)
@@ -762,7 +762,7 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
 
         /// writes some data to the ssl stream.
         pub fn write(self: *Self, bytes: []const u8) WriteError!usize {
-            var result = c.br_sslio_write(&self.ioc, bytes.ptr, bytes.len);
+            const result = c.br_sslio_write(&self.ioc, bytes.ptr, bytes.len);
             if (result < 0) {
                 const errc = c.br_ssl_engine_last_error(self.engine);
                 if (errc == c.BR_ERR_OK)
