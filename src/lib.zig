@@ -19,13 +19,15 @@ pub fn linkBearSSL(path_prefix: []const u8, module: *std.Build.Step.Compile, tar
         module.step.owner.allocator.free(paths);
     }
 
-    module.addCSourceFiles(
-        paths,
-        &[_][]const u8{
-            "-Wall",
-            "-DBR_LE_UNALIGNED=0", // this prevent BearSSL from using undefined behaviour when doing potential unaligned access
-        },
-    );
+    inline for (paths) |srcfile| {
+        module.addCSourceFile(.{
+            .file = b.path(srcfile),
+            .flags = &[_][]const u8{
+                "-Wall",
+                "-DBR_LE_UNALIGNED=0", // this prevent BearSSL from using undefined behaviour when doing potential unaligned access
+            },
+        });
+    }
 
     if (target.isWindows()) {
         module.linkSystemLibrary("advapi32");
