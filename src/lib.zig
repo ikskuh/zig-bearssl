@@ -29,7 +29,7 @@ pub fn linkBearSSL(path_prefix: []const u8, module: *std.Build.Step.Compile, tar
         });
     }
 
-    if (target.isWindows()) {
+    if (target.result.os.tag == std.Target.Os.Tag.windows) {
         module.linkSystemLibrary("advapi32");
     }
 }
