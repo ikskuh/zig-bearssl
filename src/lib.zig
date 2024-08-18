@@ -19,7 +19,7 @@ pub fn linkBearSSL(path_prefix: []const u8, module: *std.Build.Step.Compile, tar
         module.step.owner.allocator.free(paths);
     }
 
-    inline for (paths) |srcfile| {
+    for (paths) |srcfile| {
         module.addCSourceFile(.{
             .file = b.path(srcfile),
             .flags = &[_][]const u8{
