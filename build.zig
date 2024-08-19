@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     module.addIncludePath(b.path("BearSSL/inc"));
+    module.addIncludePath(b.path("BearSSL/tools"));
 
     const exe = b.addExecutable(.{
         .name = "zig-bearssl",
