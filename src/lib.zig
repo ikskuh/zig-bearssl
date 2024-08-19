@@ -46,6 +46,7 @@ fn addPrefixToPaths(b: *std.Build, prefix: []const u8, paths: []const []const u8
 // Export C for advanced interfacing
 pub const c = @cImport({
     @cInclude("bearssl.h");
+    @cInclude("brssl.h");
 });
 
 pub const BearError = error{
@@ -107,8 +108,10 @@ pub const BearError = error{
     X509_FORBIDDEN_KEY_USAGE,
     X509_WEAK_PUBLIC_KEY,
     X509_NOT_TRUSTED,
+    UNKNOWN_ERROR_552,
+    UNKNOWN_ERROR_582,
 };
-fn convertError(err: c_int) BearError {
+pub fn convertError(err: c_int) BearError {
     return switch (err) {
         c.BR_ERR_BAD_PARAM => error.BAD_PARAM,
         c.BR_ERR_BAD_STATE => error.BAD_STATE,
