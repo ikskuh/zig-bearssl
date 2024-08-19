@@ -6,11 +6,12 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    _ = b.addModule("bearssl", .{
+    const module = b.addModule("bearssl", .{
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
     });
+    module.addIncludePath(b.path("BearSSL/inc"));
 
     const exe = b.addExecutable(.{
         .name = "zig-bearssl",
