@@ -854,12 +854,12 @@ const asn1 = struct {
     }
 };
 const bearssl_sources = [_][]const u8{
-    "/BearSSL/tools/keys.c",
-    "/BearSSL/tools/files.c",
-    "/BearSSL/tools/names.c",
-    "/BearSSL/tools/xmem.c",
-    "/BearSSL/tools/errors.c",
-    "/BearSSL/tools/vector.c",
+    "BearSSL/tools/keys.c",
+    "BearSSL/tools/files.c",
+    "BearSSL/tools/names.c",
+    "BearSSL/tools/xmem.c",
+    "BearSSL/tools/errors.c",
+    "BearSSL/tools/vector.c",
     "BearSSL/src/settings.c",
     "BearSSL/src/aead/ccm.c",
     "BearSSL/src/aead/eax.c",
