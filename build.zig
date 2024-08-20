@@ -14,23 +14,14 @@ pub fn build(b: *std.Build) void {
     module.addIncludePath(b.path("BearSSL/inc"));
     module.addIncludePath(b.path("BearSSL/tools"));
 
-    const exe = b.addExecutable(.{
+    const lib = b.addStaticLibrary(.{
         .name = "zig-bearssl",
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    bearssl.linkBearSSL(".", exe, target, b);
+    bearssl.linkBearSSL(".", lib, target, b);
 
-    b.installArtifact(exe);
-
-    const run_cmd = b.addRunArtifact(exe);
-    run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+    b.installArtifact(lib);
 }
