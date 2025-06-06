@@ -1,5 +1,6 @@
 .{
     .name = .zig_bearssl,
+    .fingerprint = 0xd929bda68756a1ed,
     .version = "0.1.0",
     .paths = .{
         "build.zig",
