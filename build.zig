@@ -10,6 +10,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
+        .pic = true,
     });
     module.addIncludePath(b.path("BearSSL/inc"));
     module.addIncludePath(b.path("BearSSL/tools"));
@@ -19,6 +20,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
+        .pic = true,
     });
 
     bearssl.linkBearSSL(".", lib, target, b);
