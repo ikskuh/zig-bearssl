@@ -2,6 +2,7 @@
     .name = .zig_bearssl,
     .fingerprint = 0xd929bda62b42c0df,
     .version = "0.1.0",
+    .fingerprint = 0xd929bda64491f56c,
     .paths = .{
         "build.zig",
         "build.zig.zon",

@@ -1,6 +1,7 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
+    const linkage = b.option(std.builtin.LinkMode, "linkage", "Link mode for bearssl library") orelse .static; // or other default
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -35,7 +36,8 @@ pub fn build(b: *std.Build) void {
         module.linkSystemLibrary("advapi32", .{ .needed = true });
     }
 
-    const lib = b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
+        .linkage = linkage,
         .name = "zig-bearssl",
         .root_module = module,
     });
