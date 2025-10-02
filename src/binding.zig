@@ -281,7 +281,7 @@ pub const TrustAnchorCollection = struct {
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
-            .items = std.ArrayList(c.br_x509_trust_anchor).init(allocator),
+            .items = .empty,
             .arena = std.heap.ArenaAllocator.init(allocator),
         };
     }
