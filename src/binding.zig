@@ -693,7 +693,7 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
         }
 
         /// low level read from fd to ssl library
-        fn sockRead(ctx: ?*anyopaque, buf: [*c]u8, len: usize) callconv(.C) c_int {
+        fn sockRead(ctx: ?*anyopaque, buf: [*c]u8, len: usize) callconv(.c) c_int {
             var input = @as(SrcReader, @ptrCast(@alignCast(ctx.?)));
 
             const read_result = input.read(buf[0..len]) catch return -1;
@@ -701,7 +701,7 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
         }
 
         /// low level  write from ssl library to fd
-        fn sockWrite(ctx: ?*anyopaque, buf: [*c]const u8, len: usize) callconv(.C) c_int {
+        fn sockWrite(ctx: ?*anyopaque, buf: [*c]const u8, len: usize) callconv(.c) c_int {
             var output = @as(SrcWriter, @ptrCast(@alignCast(ctx.?)));
 
             const write_result = output.write(buf[0..len]) catch return -1;
@@ -748,7 +748,7 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
     };
 }
 
-fn appendToBuffer(dest_ctx: ?*anyopaque, buf: ?*const anyopaque, len: usize) callconv(.C) void {
+fn appendToBuffer(dest_ctx: ?*anyopaque, buf: ?*const anyopaque, len: usize) callconv(.c) void {
     var dest_buffer = @as(*std.ArrayList(u8), @ptrCast(@alignCast(dest_ctx)));
 
     // std.log.warn("read chunk of {} bytes...", .{len});
