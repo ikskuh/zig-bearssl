@@ -1,5 +1,5 @@
 const std = @import("std");
-const ssl = @import("./lib.zig");
+const ssl = @import("bearssl");
 
 pub fn main() anyerror!void {
     std.log.info("All your codebase are belong to us.", .{});

@@ -2,6 +2,7 @@
     .name = .zig_bearssl,
     .fingerprint = 0xd929bda68756a1ed,
     .version = "0.1.0",
+    .fingerprint = 0xd929bda64cf11e08,
     .paths = .{
         "build.zig",
         "build.zig.zon",
@@ -9,5 +10,11 @@
         "LICENSE",
         "README.md",
         "BearSSL",
+    },
+    .dependencies = .{
+        .bearssl = .{
+            .url = "https://www.bearssl.org/gitweb/?p=BearSSL;a=snapshot;h=3c040368f6791553610e362401db1efff4b4c5b8;sf=tgz",
+            .hash = "N-V-__8AAEvROADrBJ3JL52E795Hr0I2pIGtQNttSAPZv7Lv",
+        },
     },
 }
