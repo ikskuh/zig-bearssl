@@ -28,7 +28,7 @@ pub fn build(b: *std.Build) void {
         .files = &bearssl_sources,
         .flags = &.{
             "-Wall",
-            "-fno-sanitize=function", // bearssl depends on this
+            //"-fno-sanitize=function", // bearssl depends on this
             "-DBR_LE_UNALIGNED=0", // this prevent BearSSL from using undefined behaviour when doing potential unaligned access
         },
     });
@@ -272,7 +272,7 @@ const bearssl_sources = [_][]const u8{
     "src/ssl/ssl_client.c",
     "src/ssl/ssl_client_default_rsapub.c",
     "src/ssl/ssl_client_full.c",
-    //"src/ssl/ssl_engine.c",
+    "src/ssl/ssl_engine.c",
     "src/ssl/ssl_engine_default_aescbc.c",
     "src/ssl/ssl_engine_default_aesccm.c",
     "src/ssl/ssl_engine_default_aesgcm.c",
