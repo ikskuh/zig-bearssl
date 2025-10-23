@@ -32,6 +32,15 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    // src/ssl/ssl_engine.c:318 is special ReleaseSafe triggers a UBSan exception
+    // consulted with upstream proposed this solution.
+    module.addCSourceFile(.{
+        .file = bearssl_dep.path("src/ssl/ssl_engine.c"),
+        .flags = &[_][]const u8{
+            "-Wall",
+            "-fno-sanitize=function",
+            "-DBR_LE_UNALIGNED=0"} });
+
     if (target.result.os.tag == .windows) {
         module.linkSystemLibrary("advapi32", .{ .needed = true });
     }
@@ -271,7 +280,7 @@ const bearssl_sources = [_][]const u8{
     "src/ssl/ssl_client.c",
     "src/ssl/ssl_client_default_rsapub.c",
     "src/ssl/ssl_client_full.c",
-    "src/ssl/ssl_engine.c",
+    //"src/ssl/ssl_engine.c",
     "src/ssl/ssl_engine_default_aescbc.c",
     "src/ssl/ssl_engine_default_aesccm.c",
     "src/ssl/ssl_engine_default_aesgcm.c",
