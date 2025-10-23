@@ -28,18 +28,10 @@ pub fn build(b: *std.Build) void {
         .files = &bearssl_sources,
         .flags = &.{
             "-Wall",
+            "-fno-sanitize=function", // bearssl depends on this
             "-DBR_LE_UNALIGNED=0", // this prevent BearSSL from using undefined behaviour when doing potential unaligned access
         },
     });
-
-    // src/ssl/ssl_engine.c:318 is special ReleaseSafe triggers a UBSan exception
-    // consulted with upstream proposed this solution.
-    module.addCSourceFile(.{
-        .file = bearssl_dep.path("src/ssl/ssl_engine.c"),
-        .flags = &[_][]const u8{
-            "-Wall",
-            "-fno-sanitize=function",
-            "-DBR_LE_UNALIGNED=0"} });
 
     if (target.result.os.tag == .windows) {
         module.linkSystemLibrary("advapi32", .{ .needed = true });
