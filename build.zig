@@ -28,6 +28,7 @@ pub fn build(b: *std.Build) void {
         .files = &bearssl_sources,
         .flags = &.{
             "-Wall",
+            "-fno-sanitize=function", // bearssl depends on this
             "-DBR_LE_UNALIGNED=0", // this prevent BearSSL from using undefined behaviour when doing potential unaligned access
         },
     });
