@@ -694,17 +694,17 @@ pub fn Stream(comptime SrcReader: type, comptime SrcWriter: type) type {
 
         /// low level read from fd to ssl library
         fn sockRead(ctx: ?*anyopaque, buf: [*c]u8, len: usize) callconv(.c) c_int {
-            var input = @as(SrcReader, @ptrCast(@alignCast(ctx.?)));
+            const input = @as(SrcReader, @ptrCast(@alignCast(ctx.?)));
 
-            const read_result = input.read(buf[0..len]) catch return -1;
+            const read_result = std.posix.system.read(input.handle, buf, len);
             return if (read_result > 0) @intCast(read_result) else -1;
         }
 
         /// low level  write from ssl library to fd
         fn sockWrite(ctx: ?*anyopaque, buf: [*c]const u8, len: usize) callconv(.c) c_int {
-            var output = @as(SrcWriter, @ptrCast(@alignCast(ctx.?)));
+            const output = @as(SrcWriter, @ptrCast(@alignCast(ctx.?)));
 
-            const write_result = output.write(buf[0..len]) catch return -1;
+            const write_result = std.posix.system.write(output.handle, buf, len);
             return if (write_result > 0) @intCast(write_result) else -1;
         }
 
